@@ -30,6 +30,30 @@ uint32_t g_totalTxPackets = 0;
 uint32_t g_totalRxPackets = 0;
 double g_totalEnergyConsumed = 0.0;
 
+////////////////////////////////////////////////////////
+// JSON EVENT EMISSION SYSTEM (For Web Visualization) //
+////////////////////////////////////////////////////////
+void EmitEvent(
+    std::string event,
+    uint32_t packetId,
+    int from = -1,
+    int to = -1
+) {
+    std::cout
+        << "{"
+        << "\"time\":" << std::fixed << std::setprecision(3)
+        << ns3::Simulator::Now().GetSeconds() << ","
+        << "\"event\":\"" << event << "\","
+        << "\"packetId\":" << packetId;
+
+    if (from >= 0)
+        std::cout << ",\"from\":" << from;
+    if (to >= 0)
+        std::cout << ",\"to\":" << to;
+
+    std::cout << "}" << std::endl;
+}
+
 ///////////////////////////////////
 // WORKING ASCON-128 CRYPTOGRAPHY //
 ///////////////////////////////////
@@ -97,7 +121,10 @@ public:
         std::cout << "✓ ASCON-128 Initialized Successfully\n" << std::endl;
     }
     
-    std::vector<uint8_t> Encrypt(const std::vector<uint8_t>& plaintext) {
+    std::vector<uint8_t> Encrypt(const std::vector<uint8_t>& plaintext, uint32_t packetId, uint32_t nodeId) {
+        // Emit encryption event
+        EmitEvent("encrypt", packetId, nodeId);
+        
         uint64_t currentState[5];
         memcpy(currentState, state, sizeof(state));
         
@@ -130,7 +157,7 @@ public:
         return ciphertext;
     }
     
-    std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& ciphertext) {
+    std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& ciphertext, uint32_t packetId, uint32_t nodeId) {
         if (ciphertext.size() < 16) {
             return {};
         }
@@ -159,15 +186,25 @@ public:
         currentState[4] ^= 0x01;
         Permutation(currentState, ASCON_a);
         
+        bool verificationSuccess = true;
         for (int i = 0; i < 16; i++) {
             uint8_t expectedTag = (currentState[i/8] >> (56 - 8*(i%8))) & 0xFF;
             if (expectedTag != ciphertext[dataSize + i]) {
-                plaintext.clear();
-                return plaintext;
+                verificationSuccess = false;
+                break;
             }
         }
         
-        return plaintext;
+        if (verificationSuccess) {
+            // Emit decryption success event
+            EmitEvent("decrypt", packetId, nodeId);
+            return plaintext;
+        } else {
+            // Emit decryption failure event
+            EmitEvent("decrypt_failed", packetId, nodeId);
+            plaintext.clear();
+            return plaintext;
+        }
     }
     
     void PrintCryptoMetrics() const {
@@ -195,6 +232,8 @@ public:
     }
     
     std::vector<double> optimize(int iterations) {
+        EmitEvent("optimization_start", 0);
+        
         std::cout << "\033[1;33m🧬 OPTIMIZATION STARTED (" << iterations << " iterations)\033[0m" << std::endl;
         
         // Simple optimization logic
@@ -206,11 +245,14 @@ public:
             bestParams[1] = 0.65 + 0.15 * adjustment; // Power control: 0.65-0.8
             bestParams[2] = 0.25 + 0.15 * (1.0 - adjustment); // Sleep ratio: 0.25-0.4
             
+            // Emit optimization progress event
             if (iter % 2 == 0) {
+                EmitEvent("optimization_progress", iter, -1, iterations);
                 std::cout << "\033[33m  Iteration " << iter << "/" << iterations << "\033[0m" << std::endl;
             }
         }
         
+        EmitEvent("optimization_complete", iterations);
         std::cout << "\033[1;32m✓ OPTIMIZATION COMPLETE\033[0m" << std::endl;
         return bestParams;
     }
@@ -279,7 +321,7 @@ public:
         std::cout << "└─────────────────────────────────────────────┘" << std::endl;
     }
 
-    std::vector<uint8_t> encryptPacket(const std::vector<uint8_t>& plaintext) {
+    std::vector<uint8_t> encryptPacket(const std::vector<uint8_t>& plaintext, uint32_t nodeId, uint32_t packetId) {
         if (!cryptoEnabled) return plaintext;
         
         packetsEncrypted++;
@@ -290,7 +332,7 @@ public:
                            reinterpret_cast<uint8_t*>(&seqNum), 
                            reinterpret_cast<uint8_t*>(&seqNum) + 4);
         
-        auto ciphertext = cryptoEngine.Encrypt(dataToEncrypt);
+        auto ciphertext = cryptoEngine.Encrypt(dataToEncrypt, packetId, nodeId);
         
         if (packetsEncrypted <= 3) {
             std::cout << "\033[36m🔒 Encrypted Packet #" << packetsEncrypted 
@@ -300,12 +342,12 @@ public:
         return ciphertext;
     }
 
-    std::vector<uint8_t> decryptPacket(const std::vector<uint8_t>& ciphertext) {
+    std::vector<uint8_t> decryptPacket(const std::vector<uint8_t>& ciphertext, uint32_t nodeId, uint32_t packetId) {
         if (!cryptoEnabled) return ciphertext;
         
         packetsReceived++;
         
-        auto plaintext = cryptoEngine.Decrypt(ciphertext);
+        auto plaintext = cryptoEngine.Decrypt(ciphertext, packetId, nodeId);
         
         if (!plaintext.empty()) {
             packetsDecrypted++;
@@ -363,7 +405,8 @@ public:
 ///////////////////////////////////
 class CryptoTestApplication : public Application {
 public:
-    CryptoTestApplication() : m_socket(0), m_peerPort(0), m_packetSize(512), m_isReceiver(false) {}
+    CryptoTestApplication() : m_socket(0), m_peerPort(0), m_packetSize(512), 
+                             m_isReceiver(false), m_nodeId(0), m_packetCounter(0) {}
     
     static TypeId GetTypeId() {
         static TypeId tid = TypeId("CryptoTestApplication")
@@ -373,13 +416,15 @@ public:
     }
     
     void Setup(Ptr<Socket> socket, Address address, uint16_t port, 
-               uint32_t packetSize, EnhancedMEMOSTPProtocol* protocol, bool isReceiver) {
+               uint32_t packetSize, EnhancedMEMOSTPProtocol* protocol, 
+               bool isReceiver, uint32_t nodeId) {
         m_socket = socket;
         m_peerAddress = address;
         m_peerPort = port;
         m_packetSize = packetSize;
         m_protocol = protocol;
         m_isReceiver = isReceiver;
+        m_nodeId = nodeId;
     }
     
     void StartApplication() override {
@@ -407,7 +452,14 @@ private:
             data[i] = uv->GetInteger(0, 255);
         }
         
-        auto encryptedData = m_protocol->encryptPacket(data);
+        uint32_t packetId = ++m_packetCounter;
+        
+        // Emit packet transmission event
+        InetSocketAddress destAddr = InetSocketAddress::ConvertFrom(m_peerAddress);
+        uint32_t destNode = destAddr.GetIpv4().Get();
+        EmitEvent("packet_tx", packetId, m_nodeId, destNode);
+        
+        auto encryptedData = m_protocol->encryptPacket(data, m_nodeId, packetId);
         Ptr<Packet> packet = Create<Packet>(encryptedData.data(), encryptedData.size());
         m_socket->Send(packet);
         
@@ -418,11 +470,17 @@ private:
         Ptr<Packet> packet;
         Address from;
         while ((packet = socket->RecvFrom(from))) {
+            // Emit packet reception event
+            InetSocketAddress srcAddr = InetSocketAddress::ConvertFrom(from);
+            uint32_t srcNode = srcAddr.GetIpv4().Get();
+            uint32_t packetId = ++m_packetCounter;
+            EmitEvent("packet_rx", packetId, srcNode, m_nodeId);
+            
             uint32_t size = packet->GetSize();
             std::vector<uint8_t> buffer(size);
             packet->CopyData(buffer.data(), size);
             
-            auto decryptedData = m_protocol->decryptPacket(buffer);
+            auto decryptedData = m_protocol->decryptPacket(buffer, m_nodeId, packetId);
         }
     }
     
@@ -432,12 +490,17 @@ private:
     uint32_t m_packetSize;
     EnhancedMEMOSTPProtocol* m_protocol;
     bool m_isReceiver;
+    uint32_t m_nodeId;
+    uint32_t m_packetCounter;
 };
 
 ///////////////////////////
 // Main Simulation - FIXED //
 ///////////////////////////
 int main(int argc, char *argv[]) {
+    // Emit simulation start event
+    EmitEvent("simulation_start", 0);
+    
     // Optimized parameters
     uint32_t nNodes = 25;
     double simulationTime = 45.0;
@@ -457,6 +520,9 @@ int main(int argc, char *argv[]) {
     cmd.AddValue("visual", "Enable visual output", visual_output);
     cmd.Parse(argc, argv);
 
+    // Emit configuration event
+    EmitEvent("config", 0, nNodes, static_cast<int>(simulationTime));
+
     std::cout << "\033[1;36m╔══════════════════════════════════════════════════════════╗\033[0m" << std::endl;
     std::cout << "\033[1;36m║      ENHANCED MEMOSTP WITH ASCON-128 SIMULATION         ║\033[0m" << std::endl;
     std::cout << "\033[1;36m╚══════════════════════════════════════════════════════════╝\033[0m" << std::endl;
@@ -470,8 +536,8 @@ int main(int argc, char *argv[]) {
     testNodes.Create(1);
     EnhancedMEMOSTPProtocol testProtocol(testNodes, 1);
     
-    auto encrypted = testProtocol.encryptPacket(testData);
-    auto decrypted = testProtocol.decryptPacket(encrypted);
+    auto encrypted = testProtocol.encryptPacket(testData, 0, 1);
+    auto decrypted = testProtocol.decryptPacket(encrypted, 1, 1);
     
     if (decrypted.size() == testData.size()) {
         std::cout << "✅ Crypto test PASSED! (" << testData.size() << " bytes)\n" << std::endl;
@@ -483,6 +549,9 @@ int main(int argc, char *argv[]) {
     // Create main network
     NodeContainer nodes;
     nodes.Create(nNodes);
+
+    // Emit network creation event
+    EmitEvent("network_create", nNodes);
 
     // FIXED: Simple mobility - Grid works well
     MobilityHelper mobility;
@@ -569,7 +638,7 @@ int main(int argc, char *argv[]) {
             Ptr<Socket> recvSocket = Socket::CreateSocket(nodes.Get(receiverIdx), UdpSocketFactory::GetTypeId());
             Ptr<CryptoTestApplication> recvApp = CreateObject<CryptoTestApplication>();
             recvApp->Setup(recvSocket, InetSocketAddress(Ipv4Address::GetAny(), cryptoPort), 
-                          cryptoPort, 512, &memostp, true);
+                          cryptoPort, 512, &memostp, true, receiverIdx);
             nodes.Get(receiverIdx)->AddApplication(recvApp);
             recvApp->SetStartTime(Seconds(1.0));
             recvApp->SetStopTime(Seconds(simulationTime - 1.0));
@@ -578,7 +647,7 @@ int main(int argc, char *argv[]) {
             Ptr<Socket> sendSocket = Socket::CreateSocket(nodes.Get(senderIdx), UdpSocketFactory::GetTypeId());
             Ptr<CryptoTestApplication> sendApp = CreateObject<CryptoTestApplication>();
             sendApp->Setup(sendSocket, InetSocketAddress(interfaces.GetAddress(receiverIdx), cryptoPort), 
-                          cryptoPort, 512, &memostp, false);
+                          cryptoPort, 512, &memostp, false, senderIdx);
             nodes.Get(senderIdx)->AddApplication(sendApp);
             sendApp->SetStartTime(Seconds(3.0 + i * 0.5));
             sendApp->SetStopTime(Seconds(simulationTime - 3.0));
@@ -617,6 +686,7 @@ int main(int argc, char *argv[]) {
     Ptr<FlowMonitor> monitor = flowmon.InstallAll();
 
     std::cout << "\n\033[1;33m⏳ SIMULATION STARTED...\033[0m" << std::endl;
+    EmitEvent("simulation_running", 0);
 
     Simulator::Stop(Seconds(simulationTime));
     Simulator::Run();
@@ -655,6 +725,13 @@ int main(int argc, char *argv[]) {
     
     double energyEfficiency = (g_totalEnergyConsumed > 0) ? g_totalRxPackets / g_totalEnergyConsumed : 0;
     double energyPerNode = g_totalEnergyConsumed / nNodes;
+
+    // Emit results as events
+    EmitEvent("stats_packets", g_totalTxPackets, g_totalRxPackets, totalLostPackets);
+    EmitEvent("stats_pdr", static_cast<uint32_t>(packetDeliveryRatio));
+    EmitEvent("stats_delay", static_cast<uint32_t>(averageDelay * 1000)); // in ms
+    EmitEvent("stats_throughput", static_cast<uint32_t>(averageThroughput * 1000)); // in Kbps
+    EmitEvent("stats_energy", static_cast<uint32_t>(g_totalEnergyConsumed * 1000)); // in mJ
 
     // Display results
     std::cout << "\033[1;32m\n✨ SIMULATION COMPLETE\033[0m" << std::endl;
@@ -718,6 +795,9 @@ int main(int argc, char *argv[]) {
     }
     
     std::cout << "✅ Crypto Success: 100%" << std::endl;
+
+    // Emit simulation complete event
+    EmitEvent("simulation_complete", 0);
 
     std::cout << "\n\033[1;32m✓ Simulation completed successfully!\033[0m" << std::endl;
     std::cout << "\033[1;37m" << std::string(60, '=') << "\033[0m" << std::endl;
