@@ -127,10 +127,17 @@ To capture output to a file:
    cd ~/ns-allinone-3.42/ns-3.42
    ./ns3 run scratch/protocol.cc
    ```
-
+4. Run using the automation script
+   ```bash
+   cd ~/ns-allinone-3.42/ns-3.42/sim-server
+   chmod +x run.sh
+   ./run.sh
+   ```
+   ```
+    Working -> Start WebSocket server (ws://localhost:8080) → wait for clients → start web server (http://0.0.0.0:3000) → servers running → dashboard at http://localhost:3000/dashboard.html
+    ```
+4.1 Dashboard access
+  ```
+       http://localhost:3000/dashboard.html
+  ```
 ---
-
-## Contributing
-
-If you want to add improvements (additional scripts, plotting helpers, or CI), please create a branch and open a PR with a short description of the changes.
-
