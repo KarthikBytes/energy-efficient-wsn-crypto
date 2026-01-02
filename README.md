@@ -134,17 +134,3 @@ To capture output to a file:
 
 If you want to add improvements (additional scripts, plotting helpers, or CI), please create a branch and open a PR with a short description of the changes.
 
----
-
-## License
-
-Specify the license for your simulation code here (e.g., MIT, GPL-3.0). If you don't specify one, add a `LICENSE` file to declare the intended license.
-
----
-
-If you want, I can:
-- generate a sample `protocol.cc` skeleton compatible with ns-3.42,
-- add a small Makefile or helper script to automate the copy/build/run steps,
-- or tailor the README to include expected simulation output and example plots.
-
-Which of these would you like next?
