@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NS-3 MEMOSTP Simulation Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header h1 i {
+            font-size: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .events-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .events-panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #events-container {
+            height: 500px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+
+        .event-item {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .event-time {
+            color: #666;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        .event-type {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .event-encrypt { background: #e3f2fd; color: #1976d2; border-left-color: #1976d2; }
+        .event-decrypt { background: #e8f5e9; color: #388e3c; border-left-color: #388e3c; }
+        .event-decrypt_failed { background: #ffebee; color: #d32f2f; border-left-color: #d32f2f; }
+        .event-packet_tx { background: #fff3e0; color: #f57c00; border-left-color: #f57c00; }
+        .event-packet_rx { background: #f3e5f5; color: #7b1fa2; border-left-color: #7b1fa2; }
+        .event-optimization_start { background: #e0f7fa; color: #006064; border-left-color: #006064; }
+        .event-optimization_progress { background: #e0f7fa; color: #0097a7; border-left-color: #0097a7; }
+        .event-optimization_complete { background: #e0f7fa; color: #00838f; border-left-color: #00838f; }
+        .event-simulation_start { background: #f3e5f5; color: #7b1fa2; border-left-color: #7b1fa2; }
+        .event-simulation_complete { background: #e8f5e9; color: #388e3c; border-left-color: #388e3c; }
+
+        .event-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .event-detail {
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        .event-detail strong {
+            color: #555;
+            margin-right: 5px;
+        }
+
+        .control-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+
+        .status-indicator.connected { background: #28a745; animation: pulse 2s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .event-filter {
+            margin-top: 20px;
+        }
+
+        .filter-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .filter-option {
+            padding: 5px 15px;
+            background: #e9ecef;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+            font-size: 0.85rem;
+        }
+
+        .filter-option.active {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Results Panel */
+        .results-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-top: 20px;
+        }
+
+        .results-panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-card h4 {
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .result-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #212529;
+        }
+
+        .result-unit {
+            font-size: 1rem;
+            color: #6c757d;
+            margin-left: 5px;
+        }
+
+        .progress-container {
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #28a745;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .crypto-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .crypto-stat {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .crypto-stat h5 {
+            color: #495057;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .crypto-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding: 20px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Performance indicators */
+        .performance-indicator {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .performance-excellent { background: #28a745; color: white; }
+        .performance-good { background: #ffc107; color: #212529; }
+        .performance-fair { background: #fd7e14; color: white; }
+        .performance-poor { background: #dc3545; color: white; }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <i class="fas fa-satellite-dish"></i>
+                NS-3 MEMOSTP Live Simulation Dashboard
+                <i class="fas fa-shield-alt"></i>
+            </h1>
+            <p>Real-time monitoring of ASCON-128 encryption, packet transmission, and optimization events</p>
+        </div>
+
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3><i class="fas fa-broadcast-tower"></i> Total Events</h3>
+                <div class="stat-value" id="totalEvents">0</div>
+            </div>
+            <div class="stat-card">
+                <h3><i class="fas fa-lock"></i> Encryptions</h3>
+                <div class="stat-value" id="encryptCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3><i class="fas fa-unlock"></i> Decryptions</h3>
+                <div class="stat-value" id="decryptCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3><i class="fas fa-paper-plane"></i> Packets Sent</h3>
+                <div class="stat-value" id="txCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3><i class="fas fa-inbox"></i> Packets Received</h3>
+                <div class="stat-value" id="rxCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3><i class="fas fa-bolt"></i> Optimization</h3>
+                <div class="stat-value" id="optCount">0</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Events Panel -->
+            <div class="events-panel">
+                <h2><i class="fas fa-stream"></i> Live Events Stream</h2>
+                <div id="events-container"></div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <h2><i class="fas fa-sliders-h"></i> Controls</h2>
+
+                <div class="connection-status">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <div>
+                        <strong id="statusText">Connecting to server...</strong>
+                        <div id="serverInfo" style="font-size: 0.9rem; color: #666;"></div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="clearEvents()">
+                        <i class="fas fa-trash"></i> Clear Events
+                    </button>
+                    <button class="btn btn-secondary" onclick="toggleAutoScroll()">
+                        <i class="fas fa-arrows-alt-v"></i> Auto-scroll: <span id="autoScrollStatus">ON</span>
+                    </button>
+                    <button class="btn btn-success" onclick="exportEvents()">
+                        <i class="fas fa-download"></i> Export Events
+                    </button>
+                    <button class="btn btn-warning" onclick="showFinalResults()">
+                        <i class="fas fa-chart-bar"></i> Show Final Results
+                    </button>
+                </div>
+
+                <!-- Event Filter -->
+                <div class="event-filter">
+                    <h3><i class="fas fa-filter"></i> Filter Events</h3>
+                    <div class="filter-options">
+                        <div class="filter-option active" onclick="toggleFilter('all')">All</div>
+                        <div class="filter-option" onclick="toggleFilter('encrypt')">Encrypt</div>
+                        <div class="filter-option" onclick="toggleFilter('decrypt')">Decrypt</div>
+                        <div class="filter-option" onclick="toggleFilter('packet_tx')">Transmit</div>
+                        <div class="filter-option" onclick="toggleFilter('packet_rx')">Receive</div>
+                        <div class="filter-option" onclick="toggleFilter('optimization')">Optimization</div>
+                        <div class="filter-option" onclick="toggleFilter('simulation')">Simulation</div>
+                        <div class="filter-option" onclick="toggleFilter('stats')">Statistics</div>
+                    </div>
+                </div>
+
+                <!-- Simulation Info -->
+                <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <h3><i class="fas fa-info-circle"></i> Simulation Info</h3>
+                    <div style="margin-top: 10px;">
+                        <div><strong>Protocol:</strong> MEMOSTP with ASCON-128</div>
+                        <div><strong>Last Update:</strong> <span id="lastUpdate">Never</span></div>
+                        <div><strong>Event Rate:</strong> <span id="eventRate">0</span> events/sec</div>
+                        <div><strong>Simulation Time:</strong> <span id="simTime">0</span> s</div>
+                        <div><strong>Nodes:</strong> <span id="nodeCount">0</span></div>
+                    </div>
+                </div>
+
+                <!-- Real-time Stats -->
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <h3><i class="fas fa-chart-line"></i> Real-time Statistics</h3>
+                    <div style="margin-top: 10px;">
+                        <div><strong>Packet Delivery:</strong> <span id="pdrLive">0</span>%</div>
+                        <div><strong>Average Delay:</strong> <span id="delayLive">0</span> ms</div>
+                        <div><strong>Throughput:</strong> <span id="throughputLive">0</span> Mbps</div>
+                        <div><strong>Energy Used:</strong> <span id="energyLive">0</span> J</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="results-panel" id="resultsPanel" style="display: none;">
+            <h2><i class="fas fa-trophy"></i> Final Simulation Results</h2>
+
+            <div class="results-grid">
+                <div class="result-card">
+                    <h4>Packet Delivery Ratio</h4>
+                    <div class="result-value" id="finalPDR">0<span class="result-unit">%</span></div>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="pdrProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="pdrPerformance" style="margin-top: 5px;"></div>
+                </div>
+
+                <div class="result-card">
+                    <h4>Average Throughput</h4>
+                    <div class="result-value" id="finalThroughput">0<span class="result-unit">Mbps</span></div>
+                    <div id="throughputPerformance" style="margin-top: 5px;"></div>
+                </div>
+
+                <div class="result-card">
+                    <h4>Average Delay</h4>
+                    <div class="result-value" id="finalDelay">0<span class="result-unit">ms</span></div>
+                    <div id="delayPerformance" style="margin-top: 5px;"></div>
+                </div>
+
+                <div class="result-card">
+                    <h4>Total Energy</h4>
+                    <div class="result-value" id="finalEnergy">0<span class="result-unit">J</span></div>
+                    <div id="energyPerformance" style="margin-top: 5px;"></div>
+                </div>
+            </div>
+
+            <!-- Crypto Statistics -->
+            <div style="margin-top: 30px;">
+                <h3><i class="fas fa-lock"></i> Cryptography Statistics</h3>
+                <div class="crypto-stats">
+                    <div class="crypto-stat">
+                        <h5>Encrypted Packets</h5>
+                        <div class="crypto-value" id="cryptoEncrypted">0</div>
+                    </div>
+                    <div class="crypto-stat">
+                        <h5>Decrypted Packets</h5>
+                        <div class="crypto-value" id="cryptoDecrypted">0</div>
+                    </div>
+                    <div class="crypto-stat">
+                        <h5>Crypto Success Rate</h5>
+                        <div class="crypto-value" id="cryptoSuccess">0%</div>
+                    </div>
+                    <div class="crypto-stat">
+                        <h5>Failed Decryptions</h5>
+                        <div class="crypto-value" id="cryptoFailed">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimization Results -->
+            <div style="margin-top: 30px;">
+                <h3><i class="fas fa-cogs"></i> Optimization Results</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px;">
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <h5>Energy Weight</h5>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="optEnergyWeight">0.60</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <h5>Power Control</h5>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="optPowerControl">0.70</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <h5>Sleep Ratio</h5>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;" id="optSleepRatio">0.30</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>NS-3 Simulation Dashboard | Real-time Event Monitoring | ASCON-128 Cryptography</p>
+            <p>Connected to: <span id="connectionUrl">ws://localhost:8080</span></p>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let ws = null;
+        let autoScroll = true;
+        let eventCount = 0;
+        let lastEventTime = null;
+        let eventRates = [];
+        let activeFilters = new Set(['all']);
+        let events = [];
+
+        // Store final results
+        let finalResults = {
+            txPackets: 0,
+            rxPackets: 0,
+            pdr: 0,
+            delay: 0,
+            throughput: 0,
+            energy: 0,
+            cryptoEncrypted: 0,
+            cryptoDecrypted: 0,
+            cryptoFailed: 0
+        };
+
+        // Enhanced statistics
+        const stats = {
+            total: 0,
+            encrypt: 0,
+            decrypt: 0,
+            decrypt_failed: 0,
+            packet_tx: 0,
+            packet_rx: 0,
+            optimization_start: 0,
+            optimization_progress: 0,
+            optimization_complete: 0,
+            simulation_start: 0,
+            simulation_complete: 0,
+            stats_packets: 0,
+            stats_pdr: 0,
+            stats_delay: 0,
+            stats_throughput: 0,
+            stats_energy: 0
+        };
+
+        // Initialize WebSocket connection
+        function connectWebSocket() {
+            const url = 'ws://localhost:8080';
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                updateStatus('Connected to NS-3 Simulation', 'connected');
+                document.getElementById('connectionUrl').textContent = url;
+                document.getElementById('serverInfo').textContent = 'Receiving live events...';
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    processEvent(data);
+                } catch (error) {
+                    console.error('Error parsing event:', error);
+                }
+            };
+
+            ws.onerror = (error) => {
+                updateStatus('Connection Error', 'error');
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                updateStatus('Disconnected', 'disconnected');
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        // Process incoming event
+        function processEvent(event) {
+            eventCount++;
+            events.push(event);
+
+            // Update statistics based on event type
+            if (event.event) {
+                // Update counter for this event type
+                if (stats.hasOwnProperty(event.event)) {
+                    stats[event.event]++;
+                    updateStatDisplay(event.event);
+                }
+
+                // Handle specific event types
+                switch(event.event) {
+                    case 'stats_packets':
+                        finalResults.txPackets = event.from || 0;
+                        finalResults.rxPackets = event.to || 0;
+                        document.getElementById('txCount').textContent = finalResults.txPackets;
+                        document.getElementById('rxCount').textContent = finalResults.rxPackets;
+                        break;
+
+                    case 'stats_pdr':
+                        finalResults.pdr = event.packetId || 0;
+                        document.getElementById('pdrLive').textContent = finalResults.pdr.toFixed(2);
+                        break;
+
+                    case 'stats_delay':
+                        finalResults.delay = event.packetId || 0;
+                        document.getElementById('delayLive').textContent = finalResults.delay.toFixed(2);
+                        break;
+
+                    case 'stats_throughput':
+                        finalResults.throughput = event.packetId || 0;
+                        document.getElementById('throughputLive').textContent = (finalResults.throughput / 1000).toFixed(3);
+                        break;
+
+                    case 'stats_energy':
+                        finalResults.energy = event.packetId || 0;
+                        document.getElementById('energyLive').textContent = (finalResults.energy / 1000).toFixed(3);
+                        break;
+
+                    case 'simulation_complete':
+                        setTimeout(showFinalResults, 1000);
+                        break;
+                }
+
+                // Update optimization counter
+                if (event.event.includes('optimization')) {
+                    const optTotal = (stats.optimization_start || 0) +
+                                   (stats.optimization_progress || 0) +
+                                   (stats.optimization_complete || 0);
+                    document.getElementById('optCount').textContent = optTotal;
+                }
+
+                // Update crypto statistics
+                if (event.event === 'encrypt') {
+                    finalResults.cryptoEncrypted++;
+                } else if (event.event === 'decrypt') {
+                    finalResults.cryptoDecrypted++;
+                } else if (event.event === 'decrypt_failed') {
+                    finalResults.cryptoFailed++;
+                }
+            }
+
+            stats.total++;
+            document.getElementById('totalEvents').textContent = stats.total;
+
+            // Calculate event rate
+            const now = Date.now();
+            if (lastEventTime) {
+                const rate = 1000 / (now - lastEventTime);
+                eventRates.push(rate);
+                if (eventRates.length > 10) eventRates.shift();
+                const avgRate = eventRates.reduce((a, b) => a + b, 0) / eventRates.length;
+                document.getElementById('eventRate').textContent = avgRate.toFixed(1);
+            }
+            lastEventTime = now;
+
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+
+            // Display event if it passes filter
+            if (shouldDisplayEvent(event)) {
+                displayEvent(event);
+            }
+        }
+
+        // Check if event should be displayed based on filters
+        function shouldDisplayEvent(event) {
+            if (activeFilters.has('all')) return true;
+            if (!event.event) return false;
+
+            // Check specific filters
+            if (event.event === 'optimization_start' ||
+                event.event === 'optimization_progress' ||
+                event.event === 'optimization_complete') {
+                return activeFilters.has('optimization');
+            }
+
+            if (event.event === 'simulation_start' ||
+                event.event === 'simulation_complete') {
+                return activeFilters.has('simulation');
+            }
+
+            if (event.event.startsWith('stats_')) {
+                return activeFilters.has('stats');
+            }
+
+            return activeFilters.has(event.event);
+        }
+
+        // Display event in the events container
+        function displayEvent(event) {
+            const container = document.getElementById('events-container');
+            const eventElement = createEventElement(event);
+            container.appendChild(eventElement);
+
+            if (autoScroll) {
+                container.scrollTop = container.scrollHeight;
+            }
+
+            const maxEvents = 100;
+            if (container.children.length > maxEvents) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        // Create HTML element for an event
+        function createEventElement(event) {
+            const div = document.createElement('div');
+            div.className = 'event-item';
+
+            if (event.event) {
+                // Use a default class for optimization and stats events
+                let eventClass = event.event;
+                if (event.event.includes('optimization')) {
+                    eventClass = event.event;
+                } else if (event.event.startsWith('stats_')) {
+                    eventClass = 'simulation';
+                }
+                div.classList.add(`event-${eventClass}`);
+            }
+
+            const time = event.time ? event.time.toFixed(3) + 's' : 'Now';
+            const eventType = event.event || event.type || 'system';
+
+            let detailsHTML = '';
+            if (event.event) {
+                detailsHTML = `
+                    <div class="event-header">
+                        <span class="event-time">${time}</span>
+                        <span class="event-type event-${event.event}">${event.event}</span>
+                    </div>
+                    <div class="event-details">
+                        ${event.packetId !== undefined ? `<div class="event-detail"><strong>Packet ID:</strong> ${event.packetId}</div>` : ''}
+                        ${event.from !== undefined ? `<div class="event-detail"><strong>From:</strong> Node ${event.from}</div>` : ''}
+                        ${event.to !== undefined ? `<div class="event-detail"><strong>To:</strong> Node ${event.to}</div>` : ''}
+                        ${event.event === 'stats_packets' ? `<div class="event-detail"><strong>TX:</strong> ${event.from}</div><div class="event-detail"><strong>RX:</strong> ${event.to}</div>` : ''}
+                        ${event.event === 'stats_pdr' ? `<div class="event-detail"><strong>PDR:</strong> ${event.packetId}%</div>` : ''}
+                        ${event.event === 'stats_delay' ? `<div class="event-detail"><strong>Delay:</strong> ${event.packetId}ms</div>` : ''}
+                    </div>
+                `;
+            } else if (event.message) {
+                detailsHTML = `
+                    <div class="event-header">
+                        <span class="event-time">${time}</span>
+                        <span class="event-type" style="background:#6c757d;color:white;">System</span>
+                    </div>
+                    <div style="margin-top:5px;">${event.message}</div>
+                `;
+            }
+
+            div.innerHTML = detailsHTML;
+            return div;
+        }
+
+        // Update status display
+        function updateStatus(message, status) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+
+            statusText.textContent = message;
+            indicator.className = 'status-indicator';
+
+            switch(status) {
+                case 'connected':
+                    indicator.classList.add('connected');
+                    break;
+                case 'error':
+                    indicator.style.background = '#dc3545';
+                    break;
+                case 'disconnected':
+                    indicator.style.background = '#6c757d';
+                    break;
+            }
+        }
+
+        // Update statistic display
+        function updateStatDisplay(statName) {
+            const element = document.getElementById(statName + 'Count');
+            if (element) {
+                element.textContent = stats[statName];
+                element.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    element.style.transform = 'scale(1)';
+                }, 300);
+            }
+        }
+
+        // Toggle event filter
+        function toggleFilter(filter) {
+            const filterOptions = document.querySelectorAll('.filter-option');
+
+            if (filter === 'all') {
+                if (activeFilters.has('all')) {
+                    activeFilters.delete('all');
+                    filterOptions[0].classList.remove('active');
+                } else {
+                    activeFilters.clear();
+                    activeFilters.add('all');
+                    filterOptions.forEach(opt => {
+                        if (opt.textContent === 'All') opt.classList.add('active');
+                        else opt.classList.remove('active');
+                    });
+                }
+            } else {
+                if (activeFilters.has(filter)) {
+                    activeFilters.delete(filter);
+                    activeFilters.delete('all');
+                } else {
+                    activeFilters.add(filter);
+                    activeFilters.delete('all');
+                }
+
+                filterOptions[0].classList.remove('active');
+                filterOptions.forEach(opt => {
+                    if (opt.textContent.toLowerCase() === filter) {
+                        opt.classList.toggle('active');
+                    }
+                });
+            }
+
+            renderFilteredEvents();
+        }
+
+        // Render events based on current filters
+        function renderFilteredEvents() {
+            const container = document.getElementById('events-container');
+            container.innerHTML = '';
+
+            events.forEach(event => {
+                if (shouldDisplayEvent(event)) {
+                    displayEvent(event);
+                }
+            });
+        }
+
+        // Clear all events
+        function clearEvents() {
+            const container = document.getElementById('events-container');
+            container.innerHTML = '';
+            events = [];
+
+            Object.keys(stats).forEach(key => {
+                stats[key] = 0;
+                const element = document.getElementById(key + 'Count');
+                if (element) element.textContent = '0';
+            });
+
+            const systemEvent = {
+                type: 'system',
+                message: 'Event log cleared',
+                timestamp: Date.now()
+            };
+            processEvent(systemEvent);
+        }
+
+        // Toggle auto-scroll
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            const statusElement = document.getElementById('autoScrollStatus');
+            statusElement.textContent = autoScroll ? 'ON' : 'OFF';
+            statusElement.style.color = autoScroll ? '#28a745' : '#dc3545';
+        }
+
+        // Export events as JSON
+        function exportEvents() {
+            const dataStr = JSON.stringify(events, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+            const exportFileDefaultName = `ns3-events-${new Date().toISOString().slice(0,10)}.json`;
+
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+
+            const systemEvent = {
+                type: 'system',
+                message: `Exported ${events.length} events to ${exportFileDefaultName}`,
+                timestamp: Date.now()
+            };
+            processEvent(systemEvent);
+        }
+
+        // Show final results
+        function showFinalResults() {
+            const resultsPanel = document.getElementById('resultsPanel');
+            resultsPanel.style.display = 'block';
+
+            // Update final results display
+            document.getElementById('finalPDR').textContent = finalResults.pdr.toFixed(2);
+            document.getElementById('finalThroughput').textContent = (finalResults.throughput / 1000).toFixed(3);
+            document.getElementById('finalDelay').textContent = finalResults.delay.toFixed(2);
+            document.getElementById('finalEnergy').textContent = (finalResults.energy / 1000).toFixed(3);
+
+            // Update PDR progress bar
+            const pdrProgress = Math.min(finalResults.pdr, 100);
+            document.getElementById('pdrProgress').style.width = pdrProgress + '%';
+
+            // Update crypto stats
+            document.getElementById('cryptoEncrypted').textContent = finalResults.cryptoEncrypted;
+            document.getElementById('cryptoDecrypted').textContent = finalResults.cryptoDecrypted;
+            document.getElementById('cryptoFailed').textContent = finalResults.cryptoFailed;
+
+            // Calculate crypto success rate
+            const totalCryptoOps = finalResults.cryptoDecrypted + finalResults.cryptoFailed;
+            const cryptoSuccessRate = totalCryptoOps > 0 ?
+                (finalResults.cryptoDecrypted / totalCryptoOps * 100).toFixed(1) : 100;
+            document.getElementById('cryptoSuccess').textContent = cryptoSuccessRate + '%';
+
+            // Add performance indicators
+            addPerformanceIndicators();
+
+            // Scroll to results
+            resultsPanel.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Add performance indicators
+        function addPerformanceIndicators() {
+            // PDR performance
+            const pdrElement = document.getElementById('pdrPerformance');
+            if (finalResults.pdr >= 80) {
+                pdrElement.innerHTML = '<span class="performance-indicator performance-excellent">Excellent</span>';
+            } else if (finalResults.pdr >= 60) {
+                pdrElement.innerHTML = '<span class="performance-indicator performance-good">Good</span>';
+            } else if (finalResults.pdr >= 40) {
+                pdrElement.innerHTML = '<span class="performance-indicator performance-fair">Fair</span>';
+            } else {
+                pdrElement.innerHTML = '<span class="performance-indicator performance-poor">Needs Improvement</span>';
+            }
+
+            // Throughput performance (assuming Mbps)
+            const throughputMbps = finalResults.throughput / 1000;
+            const throughputElement = document.getElementById('throughputPerformance');
+            if (throughputMbps >= 0.5) {
+                throughputElement.innerHTML = '<span class="performance-indicator performance-excellent">Good</span>';
+            } else if (throughputMbps >= 0.1) {
+                throughputElement.innerHTML = '<span class="performance-indicator performance-good">Fair</span>';
+            } else {
+                throughputElement.innerHTML = '<span class="performance-indicator performance-poor">Low</span>';
+            }
+
+            // Delay performance (ms)
+            const delayElement = document.getElementById('delayPerformance');
+            if (finalResults.delay <= 50) {
+                delayElement.innerHTML = '<span class="performance-indicator performance-excellent">Excellent</span>';
+            } else if (finalResults.delay <= 100) {
+                delayElement.innerHTML = '<span class="performance-indicator performance-good">Good</span>';
+            } else if (finalResults.delay <= 200) {
+                delayElement.innerHTML = '<span class="performance-indicator performance-fair">Fair</span>';
+            } else {
+                delayElement.innerHTML = '<span class="performance-indicator performance-poor">High</span>';
+            }
+        }
+
+        // Initialize the dashboard
+        function initDashboard() {
+            connectWebSocket();
+
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'c') {
+                    clearEvents();
+                } else if (e.key === 'Escape') {
+                    toggleAutoScroll();
+                }
+            });
+
+            const welcomeEvent = {
+                type: 'system',
+                message: 'Dashboard initialized. Waiting for NS-3 simulation events...',
+                timestamp: Date.now()
+            };
+            processEvent(welcomeEvent);
+        }
+
+        // Start the dashboard when page loads
+        window.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>
