@@ -141,3 +141,51 @@ To capture output to a file:
        http://localhost:3000/dashboard.html
   ```
 ---
+# NetAnim XML Trace Visualizer
+
+This repository contains a NetAnim-based animator for visualizing XML trace files produced by network simulators (for example, ns-3's AnimationInterface). This README explains practical, step-by-step instructions to build, run and troubleshoot NetAnim animations using both the GUI and command-line approaches.
+
+Table of contents
+- Prerequisites
+- Quick start (GUI)
+- Quick start (command-line / headless)
+- Building NetAnim from source
+- Generating XML traces (ns-3 example)
+- Usage examples and tips
+- Troubleshooting
+- Project structure
+- Contributing & license
+- Contact
+
+---
+
+Prerequisites
+- Supported OS: Linux (Ubuntu/Debian), macOS, Windows (MSYS2 / Qt Creator). Examples below use Ubuntu.
+- Build tools: git, make, gcc / clang, cmake (optional)
+- Qt: Qt 5.x (recommended) or Qt 6 (check project compatibility)
+  - Ubuntu apt packages (example): build-essential git cmake qt5-qmake qtbase5-dev qttools5-dev-tools libqt5svg5-dev
+  - macOS (Homebrew): brew install qt@5 cmake
+  - Windows: Install Qt (Qt Creator) and MSVC/MinGW as appropriate
+- Optional tools:
+  - ffmpeg — to record or convert screen captures into a video
+  - xvfb-run — to run GUI apps headless on Linux (for automated screenshotting or video export)
+- Python 3 — useful for helper scripts in examples
+
+Install packages on Ubuntu (example)
+```bash
+sudo apt update
+sudo apt install -y build-essential git cmake qt5-qmake qtbase5-dev qttools5-dev-tools libqt5svg5-dev ffmpeg xvfb x11-apps
+```
+
+---
+
+Quick start — GUI (recommended for interactive exploration)
+1. Build NetAnim (see the Build section). After building, you'll have a binary (commonly `NetAnim` or `NetAnim-Qt`).
+2. Launch the NetAnim GUI:
+```bash
+./NetAnim
+```
+3. In the GUI: File → Open → select your XML trace file (e.g., `anim.xml`).
+4. Use playback controls: Play / Pause, Timeline slider, Speed control. Use the node list to select nodes, inspect packet events, enable/hide labels or links.
+
+
