@@ -773,30 +773,6 @@ int main(int argc, char *argv[]) {
         std::cout << "│ Sleep Ratio:     " << std::fixed << std::setw(10) << std::setprecision(4) << memostp.getSleepRatio() << " │" << std::endl;
         std::cout << "└─────────────────────────────────────────────┘" << std::endl;
     }
-
-    // Performance summary
-    std::cout << "\n\033[1;36m📈 PERFORMANCE SUMMARY:\033[0m" << std::endl;
-    if (packetDeliveryRatio >= 80) {
-        std::cout << "✅ PDR: Excellent (>80%)" << std::endl;
-    } else if (packetDeliveryRatio >= 60) {
-        std::cout << "⚠️  PDR: Good (60-80%)" << std::endl;
-    } else if (packetDeliveryRatio >= 40) {
-        std::cout << "⚠️  PDR: Fair (40-60%)" << std::endl;
-    } else {
-        std::cout << "❌ PDR: Needs Improvement (<40%)" << std::endl;
-    }
-    
-    if (averageThroughput >= 0.5) {
-        std::cout << "✅ Throughput: Good (>0.5 Mbps)" << std::endl;
-    } else if (averageThroughput >= 0.1) {
-        std::cout << "⚠️  Throughput: Fair (0.1-0.5 Mbps)" << std::endl;
-    } else {
-        std::cout << "❌ Throughput: Low (<0.1 Mbps)" << std::endl;
-    }
-    
-    std::cout << "✅ Crypto Success: 100%" << std::endl;
-
-    // Emit simulation complete event
     EmitEvent("simulation_complete", 0);
 
     std::cout << "\n\033[1;32m✓ Simulation completed successfully!\033[0m" << std::endl;
