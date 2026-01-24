@@ -1028,7 +1028,7 @@ const healthServer = http.createServer((req, res) => {
       uptime: process.uptime(),
       timestamp: Date.now()
     }));
-  } else {
+  } else {github KarthikBytes
     res.writeHead(404);
     res.end();
   }
